@@ -139,8 +139,22 @@
     let activeWorkspace = -1;
 
     function extractMagnets(text) {
-      const matches = text.match(/magnet:\?[^\s"'<>]+/gi) || [];
-      return [...new Set(matches.map((value) => value.replace(/[),.;]+$/, '')))];
+      const results = [];
+      const pattern = /magnet:\?/gi;
+      let match;
+
+      while ((match = pattern.exec(text)) !== null) {
+        const start = match.index;
+        const nextStart = text.indexOf('magnet:?', start + 8);
+        const end = nextStart === -1 ? text.length : nextStart;
+        const candidate = text.slice(start, end).trim();
+
+        if (candidate) {
+          results.push(candidate.replace(/[),.;]+$/, ''));
+        }
+      }
+
+      return [...new Set(results)];
     }
 
     function taskName(magnet, index) {
