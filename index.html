@@ -3,129 +3,91 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#10251f">
   <title>磁力任务发射台</title>
   <style>
-    :root {
-      --ink: #17332b;
-      --muted: #6a7e75;
-      --paper: #f5f1e8;
-      --panel: rgba(255, 252, 244, .86);
-      --line: #d8d6c8;
-      --accent: #e45b35;
-      --accent-dark: #b83d22;
-      --mint: #c9dfcf;
-      --shadow: 0 22px 60px rgba(35, 58, 48, .14);
-    }
-
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      min-height: 100vh;
-      color: var(--ink);
-      font-family: Georgia, "Noto Serif SC", "Microsoft YaHei", serif;
-      background: var(--paper);
-      background-image:
-        radial-gradient(circle at 12% 12%, rgba(201, 223, 207, .72), transparent 28rem),
-        radial-gradient(circle at 92% 86%, rgba(228, 91, 53, .12), transparent 24rem),
-        linear-gradient(120deg, rgba(255,255,255,.42), transparent 48%);
+      padding: 32px 16px 48px;
+      color: #1c1c1c;
+      font: 15px/1.6 "Microsoft YaHei", system-ui, sans-serif;
+      background: #f5f5f3;
     }
+    main { width: min(640px, 100%); margin: 0 auto; }
+    h1 { margin: 0 0 6px; font-size: 24px; }
+    .intro { margin: 0 0 24px; color: #777; font-size: 14px; }
 
-    main { width: min(1040px, calc(100% - 32px)); margin: 0 auto; padding: 48px 0 64px; }
-    header { display: flex; justify-content: space-between; align-items: end; gap: 24px; margin-bottom: 30px; }
-    .eyebrow { margin: 0 0 10px; color: var(--accent-dark); font: 700 12px/1.2 "Microsoft YaHei", sans-serif; letter-spacing: .16em; text-transform: uppercase; }
-    h1 { margin: 0; max-width: 620px; font-size: clamp(34px, 6vw, 66px); line-height: .98; letter-spacing: -.04em; font-weight: 700; }
-    .intro { max-width: 270px; margin: 0 0 4px; color: var(--muted); font: 14px/1.7 "Microsoft YaHei", sans-serif; }
-
-    .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 18px; align-items: start; }
-    .dropzone, .side-panel { border: 1px solid var(--line); background: var(--panel); box-shadow: var(--shadow); }
-    .dropzone { min-height: 310px; padding: 28px; display: grid; place-items: center; text-align: center; border-radius: 4px; transition: border-color .2s, transform .2s, background .2s; }
-    .dropzone.is-over { border-color: var(--accent); background: #fff8ee; transform: translateY(-3px); }
-    .upload-mark { width: 64px; height: 64px; display: grid; place-items: center; margin: 0 auto 20px; border: 1px solid var(--ink); border-radius: 50%; font-size: 30px; }
-    .dropzone h2 { margin: 0 0 8px; font-size: 26px; }
-    .dropzone p { margin: 0 0 20px; color: var(--muted); font: 14px/1.6 "Microsoft YaHei", sans-serif; }
+    .dropzone {
+      padding: 32px 20px; text-align: center;
+      border: 2px dashed #ccc; border-radius: 8px; background: #fff;
+      transition: border-color .2s, background .2s;
+    }
+    .dropzone.is-over { border-color: #e45b35; background: #fff8f4; }
+    .dropzone p { margin: 0 0 16px; color: #888; font-size: 14px; }
     input[type=file] { display: none; }
-    .file-button, .action-button { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 18px; border: 0; border-radius: 3px; cursor: pointer; font: 700 14px "Microsoft YaHei", sans-serif; transition: background .2s, transform .2s; }
-    .file-button { color: #fffaf0; background: var(--ink); }
-    .file-button:hover, .action-button:hover { transform: translateY(-2px); }
-    .side-panel { padding: 22px; border-radius: 4px; }
-    .side-panel h2 { margin: 0 0 12px; font-size: 18px; }
-    .side-panel p { margin: 0; color: var(--muted); font: 13px/1.75 "Microsoft YaHei", sans-serif; }
-    .side-panel strong { color: var(--ink); }
 
-    .results { margin-top: 28px; }
-    .results-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--ink); }
-    .results-head h2 { margin: 0; font-size: 22px; }
-    #count { color: var(--muted); font: 13px "Microsoft YaHei", sans-serif; }
-    .tabs { display: flex; gap: 6px; overflow-x: auto; padding: 12px 0 2px; scrollbar-width: thin; }
-    .tab { display: inline-flex; align-items: center; gap: 9px; flex: 0 0 auto; max-width: 260px; min-height: 38px; padding: 0 10px 0 14px; border: 1px solid var(--line); border-radius: 3px 3px 0 0; color: var(--muted); background: rgba(255, 252, 244, .58); cursor: pointer; font: 13px "Microsoft YaHei", sans-serif; }
-    .tab.active { color: var(--ink); border-color: var(--ink); background: var(--panel); }
-    .tab-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .tab-count { color: var(--accent-dark); font-size: 11px; }
-    .tab-close { display: grid; place-items: center; width: 22px; height: 22px; border: 0; border-radius: 50%; color: var(--muted); background: transparent; cursor: pointer; font-size: 16px; line-height: 1; }
-    .tab-close:hover { color: #fffaf0; background: var(--accent); }
-    #list { display: grid; gap: 10px; margin-top: 12px; }
-    .task { display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: center; padding: 17px 18px; border-left: 4px solid var(--mint); background: rgba(255, 252, 244, .72); }
-    .task h3 { margin: 0 0 7px; font-size: 17px; line-height: 1.35; overflow-wrap: anywhere; }
-    .task-meta { color: var(--muted); font: 12px "Microsoft YaHei", sans-serif; }
-    .action-button { color: #fffaf0; background: var(--accent); white-space: nowrap; }
-    .action-button:hover { background: var(--accent-dark); }
-    .copy-button { min-height: 34px; margin-left: 6px; padding: 0 10px; color: var(--ink); background: transparent; border: 1px solid var(--line); font-size: 12px; }
-    .empty { padding: 32px 0; color: var(--muted); text-align: center; font: 14px "Microsoft YaHei", sans-serif; }
-    .status { min-height: 22px; margin-top: 12px; color: var(--accent-dark); font: 13px "Microsoft YaHei", sans-serif; }
-    footer { margin-top: 38px; color: var(--muted); font: 12px/1.6 "Microsoft YaHei", sans-serif; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-height: 40px; padding: 0 16px; border: 0; border-radius: 6px;
+      font: inherit; font-weight: 700; cursor: pointer;
+    }
+    .btn-dark { color: #fff; background: #1c1c1c; }
+    .btn-accent { color: #fff; background: #e45b35; }
+    .btn-ghost { color: #1c1c1c; background: transparent; border: 1px solid #ccc; font-weight: 400; }
 
-    @media (max-width: 760px) {
-      main { width: min(100% - 24px, 620px); padding-top: 28px; }
-      header { display: block; }
-      .intro { max-width: none; margin-top: 16px; }
-      .workspace { grid-template-columns: 1fr; }
-      .dropzone { min-height: 260px; padding: 22px; }
-      .task { grid-template-columns: 1fr; gap: 12px; }
-      .action-button { width: 100%; }
+    .status { min-height: 20px; margin: 12px 0; color: #b83d22; font-size: 13px; }
+
+    .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 20px 0 12px; }
+    .tab {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 8px 6px 12px; border: 1px solid #ddd; border-radius: 6px;
+      color: #777; background: #fff; cursor: pointer; font-size: 13px;
+    }
+    .tab.active { color: #1c1c1c; border-color: #1c1c1c; }
+    .tab-count { color: #e45b35; }
+    .tab-close { border: 0; background: transparent; color: #aaa; cursor: pointer; font-size: 16px; line-height: 1; padding: 0 2px; }
+    .tab-close:hover { color: #e45b35; }
+
+    .bulk-actions { display: flex; gap: 8px; margin-bottom: 12px; }
+
+    #count { margin-bottom: 12px; color: #888; font-size: 13px; }
+    #list { display: grid; gap: 8px; }
+    .task {
+      display: flex; justify-content: space-between; align-items: center; gap: 12px;
+      padding: 14px 16px; border-radius: 6px; background: #fff; border: 1px solid #eee;
+    }
+    .task h3 { margin: 0 0 4px; font-size: 15px; overflow-wrap: anywhere; }
+    .task-meta { color: #999; font-size: 12px; }
+    .task-actions { display: flex; gap: 6px; flex-shrink: 0; }
+    .task-actions .btn { min-height: 34px; padding: 0 12px; font-size: 13px; }
+    .empty { padding: 28px 0; color: #999; text-align: center; }
+
+    @media (max-width: 520px) {
+      .task { flex-direction: column; align-items: stretch; }
+      .task-actions .btn { flex: 1; }
     }
   </style>
 </head>
 <body>
   <main>
-    <header>
-      <div>
-        <p class="eyebrow">Magnet task launcher</p>
-        <h1>把下载列表，变成一键入口。</h1>
-      </div>
-      <p class="intro">上传包含磁力链接的文本文件，在手机或电脑浏览器中直接唤醒已安装的比特彗星。</p>
-    </header>
+    <h1>磁力任务发射台</h1>
+    <p class="intro">上传含磁力链接的文本文件，一键唤醒已安装的下载客户端（比特彗星、qBittorrent 等）。文件仅在本地处理，不会上传。</p>
 
-    <section class="workspace" aria-label="导入区域">
-      <div class="dropzone" id="dropzone">
-        <div>
-          <div class="upload-mark" aria-hidden="true">↑</div>
-          <h2>拖入文本文件</h2>
-          <p>支持一次选择多个 .txt、.log 文件，也可以分批拖入。</p>
-          <label class="file-button" for="file-input">选择文件</label>
-          <input id="file-input" type="file" accept=".txt,.log,text/plain" multiple>
-          <div class="status" id="status" aria-live="polite"></div>
-        </div>
-      </div>
-      <aside class="side-panel">
-        <h2>使用方式</h2>
-        <p><strong>1.</strong> 上传下载列表文本。</p>
-        <p><strong>2.</strong> 点击任务右侧的“唤醒比特彗星”。</p>
-        <p><strong>3.</strong> 在比特彗星弹窗中确认保存位置。</p>
-        <p style="margin-top:14px">文件只在当前浏览器内处理，不会上传到网页服务器。</p>
-      </aside>
-    </section>
 
-    <section class="results" aria-label="磁力链接列表">
-      <div class="results-head">
-        <h2>待下载任务</h2>
-        <span id="count">尚未导入文件</span>
-      </div>
-      <div class="tabs" id="tabs" role="tablist" aria-label="已导入文件"></div>
-      <div id="list"><div class="empty">上传文件后，提取出的磁力链接会显示在这里。</div></div>
-    </section>
+    <div class="dropzone" id="dropzone">
+      <p>拖入或选择 .txt / .log 文件，支持多选</p>
+      <label class="btn btn-dark" for="file-input">选择文件</label>
+      <input id="file-input" type="file" accept=".txt,.log,text/plain" multiple>
+    </div>
+    <div class="status" id="status" aria-live="polite"></div>
 
-    <footer>提示：手机需要已安装并注册磁力链接协议的下载客户端。若点击后没有反应，请在系统设置中检查默认打开方式。</footer>
+    <div class="tabs" id="tabs"></div>
+    <div class="bulk-actions" id="bulk-actions" hidden>
+      <button class="btn btn-dark" id="copy-all" type="button">复制全部链接</button>
+      <button class="btn btn-ghost" id="launch-all" type="button">尝试全部唤醒</button>
+    </div>
+    <div id="count">尚未导入文件</div>
+    <div id="list"><div class="empty">提取出的磁力链接会显示在这里。</div></div>
   </main>
 
   <script>
@@ -135,26 +97,18 @@
     const tabs = document.querySelector('#tabs');
     const list = document.querySelector('#list');
     const count = document.querySelector('#count');
+    const bulkActions = document.querySelector('#bulk-actions');
+    const copyAllBtn = document.querySelector('#copy-all');
+    const launchAllBtn = document.querySelector('#launch-all');
     const workspaces = [];
     let activeWorkspace = -1;
 
     function extractMagnets(text) {
-      const results = [];
-      const pattern = /magnet:\?/gi;
-      let match;
-
-      while ((match = pattern.exec(text)) !== null) {
-        const start = match.index;
-        const nextStart = text.indexOf('magnet:?', start + 8);
-        const end = nextStart === -1 ? text.length : nextStart;
-        const candidate = text.slice(start, end).trim();
-
-        if (candidate) {
-          results.push(candidate.replace(/[),.;]+$/, ''));
-        }
-      }
-
-      return [...new Set(results)];
+      const matches = text.match(/magnet:\?.*?(?=magnet:\?|$)/gis) || [];
+      const cleaned = matches
+        .map((m) => m.trim().replace(/[),.;]+$/, ''))
+        .filter(Boolean);
+      return [...new Set(cleaned)];
     }
 
     function taskName(magnet, index) {
@@ -166,27 +120,29 @@
       }
     }
 
+    function currentMagnets() {
+      return activeWorkspace < 0 ? [] : workspaces[activeWorkspace].magnets;
+    }
+
     function renderTabs() {
       tabs.replaceChildren();
       workspaces.forEach((workspace, index) => {
         const tab = document.createElement('div');
         tab.className = `tab${index === activeWorkspace ? ' active' : ''}`;
-        tab.role = 'tab';
-        tab.tabIndex = 0;
-        tab.ariaSelected = index === activeWorkspace ? 'true' : 'false';
         tab.title = workspace.name;
+
         const name = document.createElement('span');
-        name.className = 'tab-name';
         name.textContent = workspace.name;
+
         const taskCount = document.createElement('span');
         taskCount.className = 'tab-count';
         taskCount.textContent = workspace.magnets.length;
+
         const close = document.createElement('button');
         close.className = 'tab-close';
         close.type = 'button';
-        close.title = '关闭此文件';
-        close.setAttribute('aria-label', `关闭 ${workspace.name}`);
         close.textContent = '×';
+        close.setAttribute('aria-label', `关闭 ${workspace.name}`);
         close.addEventListener('click', (event) => {
           event.stopPropagation();
           workspaces.splice(index, 1);
@@ -194,18 +150,13 @@
           renderTabs();
           renderActiveWorkspace();
         });
-        const activateTab = () => {
+
+        tab.addEventListener('click', () => {
           activeWorkspace = index;
           renderTabs();
           renderActiveWorkspace();
-        };
-        tab.addEventListener('click', activateTab);
-        tab.addEventListener('keydown', (event) => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            activateTab();
-          }
         });
+
         tab.append(name, taskCount, close);
         tabs.append(tab);
       });
@@ -214,6 +165,7 @@
     function render(magnets) {
       list.replaceChildren();
       count.textContent = `${magnets.length} 个任务`;
+      bulkActions.hidden = magnets.length === 0;
       if (!magnets.length) {
         list.innerHTML = '<div class="empty">没有找到以 magnet:? 开头的链接。</div>';
         return;
@@ -221,22 +173,25 @@
       magnets.forEach((magnet, index) => {
         const item = document.createElement('article');
         item.className = 'task';
+
         const info = document.createElement('div');
         const title = document.createElement('h3');
         title.textContent = taskName(magnet, index);
         const meta = document.createElement('div');
         meta.className = 'task-meta';
-        meta.textContent = `任务 ${String(index + 1).padStart(2, '0')} · 磁力链接已就绪`;
+        meta.textContent = `任务 ${String(index + 1).padStart(2, '0')}`;
         info.append(title, meta);
 
         const actions = document.createElement('div');
+        actions.className = 'task-actions';
+
         const launch = document.createElement('a');
-        launch.className = 'action-button';
+        launch.className = 'btn btn-accent';
         launch.href = magnet;
-        launch.textContent = '唤醒比特彗星';
-        launch.title = '调用系统默认磁力下载客户端';
+        launch.textContent = '唤醒';
+
         const copy = document.createElement('button');
-        copy.className = 'action-button copy-button';
+        copy.className = 'btn btn-ghost';
         copy.type = 'button';
         copy.textContent = '复制';
         copy.addEventListener('click', async () => {
@@ -248,6 +203,7 @@
             window.prompt('请复制磁力链接：', magnet);
           }
         });
+
         actions.append(launch, copy);
         item.append(info, actions);
         list.append(item);
@@ -257,7 +213,8 @@
     function renderActiveWorkspace() {
       if (activeWorkspace < 0) {
         count.textContent = '尚未导入文件';
-        list.innerHTML = '<div class="empty">上传文件后，提取出的磁力链接会显示在这里。</div>';
+        bulkActions.hidden = true;
+        list.innerHTML = '<div class="empty">提取出的磁力链接会显示在这里。</div>';
         return;
       }
       render(workspaces[activeWorkspace].magnets);
@@ -279,33 +236,56 @@
         status.textContent = '文件读取失败，请重新选择文本文件。';
         return;
       }
-      const knownContent = new Set(workspaces.map((workspace) => workspace.content));
+      const knownContent = new Set(workspaces.map((w) => w.content));
       const unique = [];
-      valid.forEach((workspace) => {
-        if (knownContent.has(workspace.content)) return;
-        knownContent.add(workspace.content);
-        unique.push(workspace);
+      valid.forEach((w) => {
+        if (knownContent.has(w.content)) return;
+        knownContent.add(w.content);
+        unique.push(w);
       });
-      const skippedCount = valid.length - unique.length;
+      const skipped = valid.length - unique.length;
       if (!unique.length) {
-        status.textContent = `已跳过 ${skippedCount} 个重复文件，当前共有 ${workspaces.length} 个文件。`;
+        status.textContent = `已跳过 ${skipped} 个重复文件，当前共有 ${workspaces.length} 个文件。`;
         return;
       }
       workspaces.push(...unique);
       activeWorkspace = workspaces.length - 1;
       renderTabs();
       renderActiveWorkspace();
-      const skippedMessage = skippedCount ? `，跳过 ${skippedCount} 个重复文件` : '';
-      status.textContent = `已添加 ${unique.length} 个文件${skippedMessage}，共 ${workspaces.length} 个文件。`;
+      status.textContent = `已添加 ${unique.length} 个文件${skipped ? `，跳过 ${skipped} 个重复文件` : ''}，共 ${workspaces.length} 个文件。`;
       fileInput.value = '';
     }
 
+    copyAllBtn.addEventListener('click', async () => {
+      const magnets = currentMagnets();
+      const text = magnets.join('\n');
+      if (!text) return;
+      try {
+        await navigator.clipboard.writeText(text);
+        copyAllBtn.textContent = `已复制 ${magnets.length} 条`;
+        setTimeout(() => { copyAllBtn.textContent = '复制全部链接'; }, 1600);
+      } catch {
+        window.prompt('请复制全部磁力链接：', text);
+      }
+    });
+
+    launchAllBtn.addEventListener('click', () => {
+      const magnets = currentMagnets();
+      magnets.forEach((magnet, index) => {
+        setTimeout(() => {
+          const a = document.createElement('a');
+          a.href = magnet;
+          a.click();
+        }, index * 600);
+      });
+    });
+
     fileInput.addEventListener('change', () => loadFiles(fileInput.files));
-    ['dragenter', 'dragover'].forEach((eventName) => dropzone.addEventListener(eventName, (event) => {
+    ['dragenter', 'dragover'].forEach((e) => dropzone.addEventListener(e, (event) => {
       event.preventDefault();
       dropzone.classList.add('is-over');
     }));
-    ['dragleave', 'drop'].forEach((eventName) => dropzone.addEventListener(eventName, (event) => {
+    ['dragleave', 'drop'].forEach((e) => dropzone.addEventListener(e, (event) => {
       event.preventDefault();
       dropzone.classList.remove('is-over');
     }));
