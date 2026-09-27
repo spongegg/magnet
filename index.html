@@ -31,11 +31,13 @@
       min-height: 40px; padding: 0 16px; border: 0; border-radius: 6px;
       font: inherit; font-weight: 700; cursor: pointer;
     }
+    .btn:disabled { opacity: .5; cursor: default; }
     .btn-dark { color: #fff; background: #1c1c1c; }
     .btn-accent { color: #fff; background: #e45b35; }
     .btn-ghost { color: #1c1c1c; background: transparent; border: 1px solid #ccc; font-weight: 400; }
 
     .status { min-height: 20px; margin: 12px 0; color: #b83d22; font-size: 13px; }
+    .hint { margin: 4px 0 0; color: #999; font-size: 12px; }
 
     .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 20px 0 12px; }
     .tab {
@@ -48,16 +50,20 @@
     .tab-close { border: 0; background: transparent; color: #aaa; cursor: pointer; font-size: 16px; line-height: 1; padding: 0 2px; }
     .tab-close:hover { color: #e45b35; }
 
-    .bulk-actions { display: flex; gap: 8px; margin-bottom: 12px; }
+    .bulk-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
 
-    #count { margin-bottom: 12px; color: #888; font-size: 13px; }
+    #count { margin: 12px 0; color: #888; font-size: 13px; }
     #list { display: grid; gap: 8px; }
     .task {
       display: flex; justify-content: space-between; align-items: center; gap: 12px;
       padding: 14px 16px; border-radius: 6px; background: #fff; border: 1px solid #eee;
     }
+    .task.is-launched { background: #f3f3f1; border-color: #e6e6e3; }
+    .task.is-launched h3 { color: #999; }
+    .task.is-next { border-color: #e45b35; box-shadow: 0 0 0 1px #e45b35; }
     .task h3 { margin: 0 0 4px; font-size: 15px; overflow-wrap: anywhere; }
     .task-meta { color: #999; font-size: 12px; }
+    .task-meta.done { color: #2a9d5c; }
     .task-actions { display: flex; gap: 6px; flex-shrink: 0; }
     .task-actions .btn { min-height: 34px; padding: 0 12px; font-size: 13px; }
     .empty { padding: 28px 0; color: #999; text-align: center; }
@@ -73,7 +79,6 @@
     <h1>磁力任务发射台</h1>
     <p class="intro">上传含磁力链接的文本文件，一键唤醒已安装的下载客户端（比特彗星、qBittorrent 等）。文件仅在本地处理，不会上传。</p>
 
-
     <div class="dropzone" id="dropzone">
       <p>拖入或选择 .txt / .log 文件，支持多选</p>
       <label class="btn btn-dark" for="file-input">选择文件</label>
@@ -84,8 +89,10 @@
     <div class="tabs" id="tabs"></div>
     <div class="bulk-actions" id="bulk-actions" hidden>
       <button class="btn btn-dark" id="copy-all" type="button">复制全部链接</button>
-      <button class="btn btn-ghost" id="launch-all" type="button">尝试全部唤醒</button>
+      <button class="btn btn-accent" id="launch-next" type="button">发射下一个</button>
+      <button class="btn btn-ghost" id="reset-progress" type="button">重置进度</button>
     </div>
+    <p class="hint" id="bulk-hint" hidden>手机上无法一次性批量唤醒。点「发射下一个」跳到客户端添加任务，返回本页再点一次即可，页面会记住进度。</p>
     <div id="count">尚未导入文件</div>
     <div id="list"><div class="empty">提取出的磁力链接会显示在这里。</div></div>
   </main>
@@ -98,8 +105,10 @@
     const list = document.querySelector('#list');
     const count = document.querySelector('#count');
     const bulkActions = document.querySelector('#bulk-actions');
+    const bulkHint = document.querySelector('#bulk-hint');
     const copyAllBtn = document.querySelector('#copy-all');
-    const launchAllBtn = document.querySelector('#launch-all');
+    const launchNextBtn = document.querySelector('#launch-next');
+    const resetBtn = document.querySelector('#reset-progress');
     const workspaces = [];
     let activeWorkspace = -1;
 
@@ -120,8 +129,34 @@
       }
     }
 
+    function activeWs() {
+      return activeWorkspace < 0 ? null : workspaces[activeWorkspace];
+    }
+
     function currentMagnets() {
-      return activeWorkspace < 0 ? [] : workspaces[activeWorkspace].magnets;
+      const ws = activeWs();
+      return ws ? ws.magnets : [];
+    }
+
+    // 找到当前文件里第一个尚未发射的任务下标，没有则返回 -1
+    function nextIndex(ws) {
+      for (let i = 0; i < ws.magnets.length; i++) {
+        if (!ws.launched.has(i)) return i;
+      }
+      return -1;
+    }
+
+    function launchOne(magnet) {
+      const a = document.createElement('a');
+      a.href = magnet;
+      a.click();
+    }
+
+    function markLaunched(index) {
+      const ws = activeWs();
+      if (!ws) return;
+      ws.launched.add(index);
+      render(ws.magnets);
     }
 
     function renderTabs() {
@@ -136,7 +171,7 @@
 
         const taskCount = document.createElement('span');
         taskCount.className = 'tab-count';
-        taskCount.textContent = workspace.magnets.length;
+        taskCount.textContent = `${workspace.launched.size}/${workspace.magnets.length}`;
 
         const close = document.createElement('button');
         close.className = 'tab-close';
@@ -162,24 +197,48 @@
       });
     }
 
+    function refreshLaunchControls() {
+      const ws = activeWs();
+      if (!ws || !ws.magnets.length) return;
+      const total = ws.magnets.length;
+      const done = ws.launched.size;
+      const next = nextIndex(ws);
+      if (next < 0) {
+        launchNextBtn.textContent = `已全部发射 (${done}/${total})`;
+        launchNextBtn.disabled = true;
+      } else {
+        launchNextBtn.textContent = `发射下一个 (第 ${next + 1} 个 · 已发 ${done}/${total})`;
+        launchNextBtn.disabled = false;
+      }
+    }
+
     function render(magnets) {
+      const ws = activeWs();
       list.replaceChildren();
-      count.textContent = `${magnets.length} 个任务`;
+      const nextIdx = ws ? nextIndex(ws) : -1;
+      count.textContent = ws
+        ? `${magnets.length} 个任务 · 已发射 ${ws.launched.size} 个`
+        : `${magnets.length} 个任务`;
       bulkActions.hidden = magnets.length === 0;
+      bulkHint.hidden = magnets.length === 0;
       if (!magnets.length) {
         list.innerHTML = '<div class="empty">没有找到以 magnet:? 开头的链接。</div>';
         return;
       }
+      refreshLaunchControls();
       magnets.forEach((magnet, index) => {
+        const launched = ws.launched.has(index);
         const item = document.createElement('article');
-        item.className = 'task';
+        item.className = `task${launched ? ' is-launched' : ''}${index === nextIdx ? ' is-next' : ''}`;
 
         const info = document.createElement('div');
         const title = document.createElement('h3');
         title.textContent = taskName(magnet, index);
         const meta = document.createElement('div');
-        meta.className = 'task-meta';
-        meta.textContent = `任务 ${String(index + 1).padStart(2, '0')}`;
+        meta.className = `task-meta${launched ? ' done' : ''}`;
+        meta.textContent = launched
+          ? `✓ 已发射 · 任务 ${String(index + 1).padStart(2, '0')}`
+          : `任务 ${String(index + 1).padStart(2, '0')}`;
         info.append(title, meta);
 
         const actions = document.createElement('div');
@@ -188,7 +247,11 @@
         const launch = document.createElement('a');
         launch.className = 'btn btn-accent';
         launch.href = magnet;
-        launch.textContent = '唤醒';
+        launch.textContent = launched ? '再次唤醒' : '唤醒';
+        launch.addEventListener('click', () => {
+          // 单独唤醒也计入进度
+          setTimeout(() => markLaunched(index), 0);
+        });
 
         const copy = document.createElement('button');
         copy.className = 'btn btn-ghost';
@@ -214,6 +277,7 @@
       if (activeWorkspace < 0) {
         count.textContent = '尚未导入文件';
         bulkActions.hidden = true;
+        bulkHint.hidden = true;
         list.innerHTML = '<div class="empty">提取出的磁力链接会显示在这里。</div>';
         return;
       }
@@ -226,7 +290,7 @@
       const loaded = await Promise.all(selectedFiles.map(async (file) => {
         try {
           const content = await file.text();
-          return { name: file.name, content, magnets: extractMagnets(content) };
+          return { name: file.name, content, magnets: extractMagnets(content), launched: new Set() };
         } catch {
           return null;
         }
@@ -269,15 +333,22 @@
       }
     });
 
-    launchAllBtn.addEventListener('click', () => {
-      const magnets = currentMagnets();
-      magnets.forEach((magnet, index) => {
-        setTimeout(() => {
-          const a = document.createElement('a');
-          a.href = magnet;
-          a.click();
-        }, index * 600);
-      });
+    launchNextBtn.addEventListener('click', () => {
+      const ws = activeWs();
+      if (!ws) return;
+      const index = nextIndex(ws);
+      if (index < 0) return;
+      launchOne(ws.magnets[index]); // 一次手势只打开一个，符合浏览器规则
+      markLaunched(index);          // 记录进度并重绘
+      renderTabs();                 // 更新标签上的 已发/总数
+    });
+
+    resetBtn.addEventListener('click', () => {
+      const ws = activeWs();
+      if (!ws) return;
+      ws.launched.clear();
+      render(ws.magnets);
+      renderTabs();
     });
 
     fileInput.addEventListener('change', () => loadFiles(fileInput.files));
