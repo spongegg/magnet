@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>磁力任务发射台</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 32px 16px 48px;
+      color: #1c1c1c;
+      font: 15px/1.6 "Microsoft YaHei", system-ui, sans-serif;
+      background: #f5f5f3;
+    }
+    main { width: min(640px, 100%); margin: 0 auto; }
+    h1 { margin: 0 0 6px; font-size: 24px; }
+    .intro { margin: 0 0 24px; color: #777; font-size: 14px; }
+
+    .dropzone {
+      padding: 32px 20px; text-align: center;
+      border: 2px dashed #ccc; border-radius: 8px; background: #fff;
+      transition: border-color .2s, background .2s;
+    }
+    .dropzone.is-over { border-color: #e45b35; background: #fff8f4; }
+    .dropzone p { margin: 0 0 16px; color: #888; font-size: 14px; }
+    input[type=file] { display: none; }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-height: 40px; padding: 0 16px; border: 0; border-radius: 6px;
+      font: inherit; font-weight: 700; cursor: pointer;
+    }
+    .btn-dark { color: #fff; background: #1c1c1c; }
+    .btn-accent { color: #fff; background: #e45b35; }
+    .btn-ghost { color: #1c1c1c; background: transparent; border: 1px solid #ccc; font-weight: 400; }
+
+    .status { min-height: 20px; margin: 12px 0; color: #b83d22; font-size: 13px; }
+    .tracker-panel { margin: 16px 0; }
+    .tracker-panel textarea {
+      display: block;
+      width: 100%;
+      min-height: 88px;
+      margin: 8px 0;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font: inherit;
+      resize: vertical;
+    }
+
+    .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 20px 0 12px; }
+    .tab {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 8px 6px 12px; border: 1px solid #ddd; border-radius: 6px;
+      color: #777; background: #fff; cursor: pointer; font-size: 13px;
+    }
+    .tab.active { color: #1c1c1c; border-color: #1c1c1c; }
+    .tab-count { color: #e45b35; }
+    .tab-close { border: 0; background: transparent; color: #aaa; cursor: pointer; font-size: 16px; line-height: 1; padding: 0 2px; }
+    .tab-close:hover { color: #e45b35; }
+
+    .bulk-actions { display: flex; gap: 8px; margin-bottom: 12px; }
+    .bulk-actions[hidden] {
+      display: none;
+    }
+    .launch-hint {
+    margin: -4px 0 12px;
+    color: #888;
+    font-size: 12px;
+  }
+
+    #count { margin-bottom: 12px; color: #888; font-size: 13px; }
+    #list { display: grid; gap: 8px; }
+    .task {
+      display: flex; justify-content: space-between; align-items: center; gap: 12px;
+      padding: 14px 16px; border-radius: 6px; background: #fff; border: 1px solid #eee;
+    }
+    .task h3 { margin: 0 0 4px; font-size: 15px; overflow-wrap: anywhere; }
+    .task-meta { color: #999; font-size: 12px; }
+    .task-actions { display: flex; gap: 6px; flex-shrink: 0; }
+    .task-actions .btn { min-height: 34px; padding: 0 12px; font-size: 13px; }
+    .empty { padding: 28px 0; color: #999; text-align: center; }
+
+    @media (max-width: 520px) {
+      .task { flex-direction: column; align-items: stretch; }
+      .task-actions .btn { flex: 1; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>磁力任务发射台</h1>
+    <p class="intro">上传含磁力链接的文本文件，一键唤醒已安装的下载客户端（比特彗星、qBittorrent 等）。文件仅在本地处理，不会上传。</p>
+
+
+    <div class="dropzone" id="dropzone">
+      <p>拖入或选择 .txt / .log 文件，支持多选</p>
+      <label class="btn btn-dark" for="file-input">选择文件</label>
+      <input id="file-input" type="file" accept=".txt,.log,text/plain" multiple>
+    </div>
+    <div class="status" id="status" aria-live="polite"></div>
+
+    <div class="tracker-panel">
+      <label for="tracker-input">Trackers（每行一个，应用于当前文件）</label>
+      <textarea id="tracker-input" placeholder="https://tracker.example.com/announce&#10;udp://tracker.example.com:6969/announce"></textarea>
+    
+      <label for="tracker-url">Tracker 获取地址</label>
+      <input
+        id="tracker-url"
+        type="url"
+        value="https://cf.trackerslist.com/best.txt"
+        placeholder="https://example.com/trackers.txt"
+        style="display:block;width:100%;margin:8px 0;padding:10px;border:1px solid #ccc;border-radius:6px;font:inherit;"
+      >  
+    
+      <button class="btn btn-ghost" id="add-trackers" type="button">添加到当前任务</button>
+      <button class="btn btn-ghost" id="fetch-trackers" type="button">获取 Trackers</button>
+    </div>  
+
+    <div class="tabs" id="tabs"></div>
+  
+    <div class="bulk-actions" id="bulk-actions" hidden>
+      <button class="btn btn-dark" id="copy-all" type="button">复制全部链接</button>
+      <button class="btn btn-accent" id="launch-next" type="button">发射下一个（第1个·已发0/0）</button>
+      <button class="btn btn-ghost" id="reset-launch-progress" type="button">重置进度</button>
+    </div>
+    <p class="launch-hint">手机上无法一次性批量唤醒。点“发射下一个”跳到客户端添加任务，返回本页再点一次即可；进度仅在当前页面打开期间保留（不要刷新界面）。</p>
+    <div id="count">尚未导入文件</div>
+    <div id="list"><div class="empty">提取出的磁力链接会显示在这里。</div></div>
+  </main>
+
+  <script>
+    const dropzone = document.querySelector('#dropzone');
+    const launchNextBtn = document.querySelector('#launch-next');
+    const resetLaunchProgressBtn = document.querySelector('#reset-launch-progress');
+    const fileInput = document.querySelector('#file-input');
+    const status = document.querySelector('#status');
+    const tabs = document.querySelector('#tabs');
+    const list = document.querySelector('#list');
+    const count = document.querySelector('#count');
+    const bulkActions = document.querySelector('#bulk-actions');
+    const copyAllBtn = document.querySelector('#copy-all');
+    const trackerInput = document.querySelector('#tracker-input');
+    const addTrackersBtn = document.querySelector('#add-trackers');
+    const fetchTrackersBtn = document.querySelector('#fetch-trackers');
+    const trackerUrlInput = document.querySelector('#tracker-url');
+    const workspaces = [];
+    let activeWorkspace = -1;
+
+    function extractMagnets(text) {
+      const matches = text.match(/magnet:\?.*?(?=magnet:\?|$)/gis) || [];
+      const cleaned = matches
+        .map((m) => m.trim().replace(/[),.;]+$/, ''))
+        .filter(Boolean);
+      return [...new Set(cleaned)];
+    }
+
+    function taskName(magnet, index) {
+      try {
+        const name = new URL(magnet).searchParams.get('dn');
+        return name ? decodeURIComponent(name) : `磁力任务 ${index + 1}`;
+      } catch {
+        return `磁力任务 ${index + 1}`;
+      }
+    }
+
+    function currentMagnets() {
+      return activeWorkspace < 0 ? [] : workspaces[activeWorkspace].magnets;
+    }
+  
+  function updateLaunchProgress() {
+    if (activeWorkspace < 0) {
+      launchNextBtn.textContent = '发射下一个';
+      launchNextBtn.disabled = true;
+      resetLaunchProgressBtn.disabled = true;
+      return;
+    }
+  
+    const workspace = workspaces[activeWorkspace];
+    const total = workspace.magnets.length;
+    const launched = Math.min(workspace.nextLaunchIndex, total);
+  
+    launchNextBtn.textContent = launched >= total && total > 0
+      ? `已全部发射（${total}/${total}）`
+      : `发射下一个（第${launched + 1}个·已发${launched}/${total}）`;
+  
+    launchNextBtn.disabled = total === 0 || launched >= total;
+    resetLaunchProgressBtn.disabled = launched === 0;
+  }
+
+    function renderTabs() {
+      tabs.replaceChildren();
+      workspaces.forEach((workspace, index) => {
+        const tab = document.createElement('div');
+        tab.className = `tab${index === activeWorkspace ? ' active' : ''}`;
+        tab.title = workspace.name;
+
+        const name = document.createElement('span');
+        name.textContent = workspace.name;
+
+        const taskCount = document.createElement('span');
+        taskCount.className = 'tab-count';
+        taskCount.textContent = workspace.magnets.length;
+
+        const close = document.createElement('button');
+        close.className = 'tab-close';
+        close.type = 'button';
+        close.textContent = '×';
+        close.setAttribute('aria-label', `关闭 ${workspace.name}`);
+        close.addEventListener('click', (event) => {
+          event.stopPropagation();
+          workspaces.splice(index, 1);
+          if (activeWorkspace >= workspaces.length) activeWorkspace = workspaces.length - 1;
+          renderTabs();
+          renderActiveWorkspace();
+        });
+
+        tab.addEventListener('click', () => {
+          activeWorkspace = index;
+          renderTabs();
+          renderActiveWorkspace();
+        });
+
+        tab.append(name, taskCount, close);
+        tabs.append(tab);
+      });
+    }
+
+    function render(magnets) {
+      list.replaceChildren();
+      count.textContent = `${magnets.length} 个任务`;
+      bulkActions.hidden = magnets.length === 0;
+      if (!magnets.length) {
+        list.innerHTML = '<div class="empty">没有找到以 magnet:? 开头的链接。</div>';
+        return;
+      }
+      magnets.forEach((magnet, index) => {
+        const item = document.createElement('article');
+        item.className = 'task';
+
+        const info = document.createElement('div');
+        const title = document.createElement('h3');
+        title.textContent = taskName(magnet, index);
+        const meta = document.createElement('div');
+        meta.className = 'task-meta';
+        meta.textContent = `任务 ${String(index + 1).padStart(2, '0')}`;
+        info.append(title, meta);
+
+        const actions = document.createElement('div');
+        actions.className = 'task-actions';
+
+        const launch = document.createElement('a');
+        launch.className = 'btn btn-accent';
+        launch.href = magnet;
+        launch.textContent = '唤醒';
+
+        const copy = document.createElement('button');
+        copy.className = 'btn btn-ghost';
+        copy.type = 'button';
+        copy.textContent = '复制';
+        copy.addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(magnet);
+            copy.textContent = '已复制';
+            setTimeout(() => { copy.textContent = '复制'; }, 1400);
+          } catch {
+            window.prompt('请复制磁力链接：', magnet);
+          }
+        });
+
+        actions.append(launch, copy);
+        item.append(info, actions);
+        list.append(item);
+      });
+    }
+
+    function renderActiveWorkspace() {
+      if (activeWorkspace < 0) {
+        count.textContent = '尚未导入文件';
+        bulkActions.hidden = true;
+        list.innerHTML = '<div class="empty">提取出的磁力链接会显示在这里。</div>';
+        return;
+      }
+      render(workspaces[activeWorkspace].magnets);
+      updateLaunchProgress();
+    }
+
+    async function loadFiles(files) {
+      const selectedFiles = [...files];
+      if (!selectedFiles.length) return;
+      const loaded = await Promise.all(selectedFiles.map(async (file) => {
+        try {
+          const content = await file.text();
+        return {
+          name: file.name,
+          content,
+          magnets: extractMagnets(content),
+          nextLaunchIndex: 0
+        };
+        } catch {
+          return null;
+        }
+      }));
+      const valid = loaded.filter(Boolean);
+      if (!valid.length) {
+        status.textContent = '文件读取失败，请重新选择文本文件。';
+        return;
+      }
+      const knownContent = new Set(workspaces.map((w) => w.content));
+      const unique = [];
+      valid.forEach((w) => {
+        if (knownContent.has(w.content)) return;
+        knownContent.add(w.content);
+        unique.push(w);
+      });
+      const skipped = valid.length - unique.length;
+      if (!unique.length) {
+        status.textContent = `已跳过 ${skipped} 个重复文件，当前共有 ${workspaces.length} 个文件。`;
+        return;
+      }
+      workspaces.push(...unique);
+      activeWorkspace = workspaces.length - 1;
+      renderTabs();
+      renderActiveWorkspace();
+      status.textContent = `已添加 ${unique.length} 个文件${skipped ? `，跳过 ${skipped} 个重复文件` : ''}，共 ${workspaces.length} 个文件。`;
+      fileInput.value = '';
+    }
+
+    copyAllBtn.addEventListener('click', async () => {
+      const magnets = currentMagnets();
+      const text = magnets.join('\n');
+      if (!text) return;
+      try {
+        await navigator.clipboard.writeText(text);
+        copyAllBtn.textContent = `已复制 ${magnets.length} 条`;
+        setTimeout(() => { copyAllBtn.textContent = '复制全部链接'; }, 1600);
+      } catch {
+        window.prompt('请复制全部磁力链接：', text);
+      }
+    });
+
+    launchNextBtn.addEventListener('click', () => {
+      if (activeWorkspace < 0) return;
+    
+      const workspace = workspaces[activeWorkspace];
+      const index = workspace.nextLaunchIndex;
+    
+      if (index >= workspace.magnets.length) {
+        status.textContent = '当前文件的磁力任务已全部发射。';
+        updateLaunchProgress();
+        return;
+      }
+    
+      const link = document.createElement('a');
+      link.href = workspace.magnets[index];
+      link.click();
+    
+      workspace.nextLaunchIndex += 1;
+      updateLaunchProgress();
+      status.textContent = `已发射第 ${index + 1} / ${workspace.magnets.length} 条任务。`;
+    });
+    
+    resetLaunchProgressBtn.addEventListener('click', () => {
+      if (activeWorkspace < 0) return;
+    
+      workspaces[activeWorkspace].nextLaunchIndex = 0;
+      updateLaunchProgress();
+      status.textContent = '当前文件的发射进度已重置。';
+    });
+
+    addTrackersBtn.addEventListener('click', () => {
+    if (activeWorkspace < 0) {
+      status.textContent = '请先导入并选择一个文件。';
+      return;
+    }
+  
+    const trackers = [...new Set(
+      trackerInput.value
+        .split(/\r?\n/)
+        .map((value) => value.trim())
+        .filter(Boolean)
+    )];
+  
+    if (!trackers.length) {
+      status.textContent = '请先输入至少一个 Tracker 地址。';
+      return;
+    }
+  
+    const validTrackers = trackers.filter((tracker) => {
+      try {
+        const url = new URL(tracker);
+        return ['http:', 'https:', 'udp:', 'ws:', 'wss:'].includes(url.protocol)
+          && Boolean(url.hostname);
+      } catch {
+        return false;
+      }
+    });
+  
+    if (!validTrackers.length) {
+      status.textContent = '没有有效的 Tracker 地址，请检查格式和协议。';
+      return;
+    }
+  
+    const workspace = workspaces[activeWorkspace];
+    let addedCount = 0;
+  
+    workspace.magnets = workspace.magnets.map((magnet) => {
+      const hashIndex = magnet.indexOf('#');
+      const base = hashIndex === -1 ? magnet : magnet.slice(0, hashIndex);
+      const fragment = hashIndex === -1 ? '' : magnet.slice(hashIndex);
+      const query = base.includes('?') ? base.slice(base.indexOf('?') + 1) : '';
+      const existing = new Set(new URLSearchParams(query).getAll('tr'));
+      const missing = validTrackers.filter((tracker) => !existing.has(tracker));
+  
+      addedCount += missing.length;
+      return missing.length
+        ? `${base}${missing.map((tracker) => `&tr=${encodeURIComponent(tracker)}`).join('')}${fragment}`
+        : magnet;
+    });
+  
+    renderTabs();
+    renderActiveWorkspace();
+    status.textContent = `已添加 ${addedCount} 条 Tracker 参数。`;
+  });
+    
+    fetchTrackersBtn.addEventListener('click', async () => {
+    const sourceUrl = trackerUrlInput.value.trim()
+      || 'https://cf.trackerslist.com/best.txt';
+  
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(sourceUrl);
+      if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+        throw new Error('获取地址必须使用 HTTP 或 HTTPS。');
+      }
+    } catch (error) {
+      status.textContent = error.message || '获取地址格式无效。';
+      return;
+    }
+  
+    fetchTrackersBtn.disabled = true;
+    status.textContent = '正在获取 Tracker 列表…';
+  
+    try {
+      const response = await fetch(parsedUrl.href, { cache: 'no-store' });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  
+      const text = await response.text();
+      const trackers = [...new Set(
+        text.split(/\r?\n/).map((tracker) => tracker.trim()).filter(Boolean)
+      )];
+  
+      if (!trackers.length) throw new Error('列表为空');
+  
+      trackerInput.value = trackers.join('\n');
+      status.textContent = `已获取 ${trackers.length} 条 Tracker。点击“添加到当前任务”应用。`;
+    } catch (error) {
+      status.textContent = `获取失败：${error.message}。自定义地址还需支持浏览器跨域访问（CORS）。`;
+    } finally {
+      fetchTrackersBtn.disabled = false;
+    }
+  });
+
+    fileInput.addEventListener('change', () => loadFiles(fileInput.files));
+    ['dragenter', 'dragover'].forEach((e) => dropzone.addEventListener(e, (event) => {
+      event.preventDefault();
+      dropzone.classList.add('is-over');
+    }));
+    ['dragleave', 'drop'].forEach((e) => dropzone.addEventListener(e, (event) => {
+      event.preventDefault();
+      dropzone.classList.remove('is-over');
+    }));
+    dropzone.addEventListener('drop', (event) => loadFiles(event.dataTransfer.files));
+  </script>
+</body>
+</html>
